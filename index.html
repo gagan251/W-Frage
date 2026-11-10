@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>W-Fragen Flashcards</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+<style>
+:root{--bg:#eef2f8;--ink:#1b2545;--muted:#5a6785;--top:#ffffff;--n1:#1f2a50;--n2:#35467d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1626;--ink:#e8edf6;--muted:#9fb0cc;--top:#1a2540;--n1:#2a3a6b;--n2:#41569a}}
+:root[data-theme="dark"]{--bg:#0e1626;--ink:#e8edf6;--muted:#9fb0cc;--top:#1a2540;--n1:#2a3a6b;--n2:#41569a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+main{max-width:880px;margin:0 auto;padding:28px 18px 40px}
+h1{font-size:clamp(26px,6vw,38px);font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+p.sub{margin:0 0 16px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.pill{color:#fff;font-weight:700;font-size:14px;padding:8px 16px;border-radius:12px;box-shadow:0 3px 8px rgba(20,33,61,.2)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:22px}
+.bar button{font:inherit;font-weight:700;background:linear-gradient(180deg,var(--n2),var(--n1));color:#fff;border:0;border-radius:12px;padding:9px 18px;cursor:pointer;box-shadow:0 3px 8px rgba(20,33,61,.25)}
+.bar button:hover{filter:brightness(1.15)}
+.bar button:focus-visible,.card:focus-visible{outline:3px solid var(--n2);outline-offset:3px}
+#count{margin-left:auto;color:var(--muted);font-weight:700}
+#count.done{color:#2f8a5b}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+.card{all:unset;position:relative;display:block;height:120px;perspective:800px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .2s}
+.card:hover{transform:translateY(-5px) scale(1.03)}
+.inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.card.flipped .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;font-weight:800}
+.front{background:linear-gradient(180deg,var(--top),color-mix(in srgb,var(--c) 15%,var(--top)));color:var(--c);border-left:7px solid var(--c);font-size:26px;box-shadow:0 6px 14px rgba(20,33,61,.15)}
+.back{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c));color:#fff;font-size:24px;text-shadow:0 1px 3px rgba(0,0,0,.3);transform:rotateY(180deg);box-shadow:0 6px 14px rgba(20,33,61,.2)}
+@media (prefers-reduced-motion:reduce){.inner,.card{transition:none}.card:hover{transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>W-Fragen</h1>
+  <p class="sub">Tap a card to flip it and see the English meaning.</p>
+  <div class="legend" id="legend"></div>
+  <div class="bar">
+    <button id="all">Flip all</button>
+    <button id="reset">Reset</button>
+    <button id="shuffle">Shuffle</button>
+    <span id="count" aria-live="polite"></span>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+<script>
+var CATS = [
+  {name:"Who, what, whose", color:"#2f6fb5"},
+  {name:"Place", color:"#c9406f"},
+  {name:"When, why, how", color:"#2f8a5b"},
+  {name:"Amount and choice", color:"#e07d1f"}
+];
+var WORDS = [
+  ["Wer?","Who?",0],["Was?","What?",0],["Wo?","Where?",1],["Wohin?","Where to?",1],
+  ["Woher?","Where from?",1],["Wann?","When?",2],["Warum?","Why?",2],["Wie?","How?",2],
+  ["Wie viel?","How much?",3],["Wie viele?","How many?",3],
+  ["Welcher / Welche / Welches?","Which?",3],["Wessen?","Whose?",0],
+  ["Wem?","To whom?",0],["Wen?","Whom?",0]
+];
+var grid = document.getElementById("grid");
+var count = document.getElementById("count");
+
+CATS.forEach(function(c){
+  var p = document.createElement("span");
+  p.className = "pill";
+  p.textContent = c.name;
+  p.style.background = "linear-gradient(180deg," + c.color + "cc," + c.color + ")";
+  document.getElementById("legend").appendChild(p);
+});
+
+function updateCount(){
+  var n = grid.querySelectorAll(".flipped").length;
+  count.textContent = n + " / " + WORDS.length + " flipped";
+  count.className = n === WORDS.length ? "done" : "";
+}
+
+function render(list){
+  grid.innerHTML = "";
+  list.forEach(function(w){
+    var b = document.createElement("button");
+    b.className = "card";
+    b.setAttribute("aria-pressed","false");
+    b.setAttribute("aria-label", w[0] + " (tap to reveal meaning)");
+    b.style.setProperty("--c", CATS[w[2]].color);
+    b.innerHTML = '<div class="inner"><div class="face front"></div><div class="face back"></div></div>';
+    var f = b.querySelector(".front"), k = b.querySelector(".back");
+    f.textContent = w[0];
+    if (w[0].length > 14) f.style.fontSize = "17px";
+    k.textContent = w[1];
+    b.addEventListener("click", function(){
+      var on = b.classList.toggle("flipped");
+      b.setAttribute("aria-pressed", on);
+      updateCount();
+    });
+    grid.appendChild(b);
+  });
+  updateCount();
+}
+
+function setAll(on){
+  grid.querySelectorAll(".card").forEach(function(c){
+    c.classList.toggle("flipped", on);
+    c.setAttribute("aria-pressed", on);
+  });
+  updateCount();
+}
+
+document.getElementById("all").onclick = function(){ setAll(true); };
+document.getElementById("reset").onclick = function(){ setAll(false); };
+document.getElementById("shuffle").onclick = function(){
+  var a = WORDS.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  render(a);
+};
+
+render(WORDS);
+</script>
+</body>
+</html>
